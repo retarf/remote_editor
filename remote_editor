@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import argparse
+import subprocess
+import datetime
+import pyinotify
+
+
+def watch_for_file_change():
+    return 0
+
+
+class Server:
+    ''' Server mode class '''
+
+    def __init__(self, interface, port, dst_file):
+        self.iface = interface
+        self.port = port
+        self.file = dst_file
+
+    def connect(self):
+        ''' listen for upcoming file using nc:
+
+                nc -l -vvv 192.168.1.4 666 > test.py
+        '''
+
+        while True:
+            p = subprocess.Popen(
+                ['nc', '-l', self.iface, self.port], stdout=subprocess.PIPE)
+            output = p.communicate()
+
+            if p.stdout:
+                now = datetime.datetime.now()
+                time = now.strftime('%d-%m-%Y %H:%M:%S')
+
+                print('[*] ', time, 'last data resived')
+                text = output[0].decode('utf-8')
+                with open(self.file, 'w') as file:
+                    file.write(text)
+
+
+class Client:
+    ''' Client mode class '''
+
+    def __init__(self, destination, port, src_file):
+        self.dst = destination
+        self.port = port
+        self.file = src_file
+
+    def connect(self):
+        ''' listen for upcoming file using nc:
+
+                nc -vvv -w 1 127.0.0.1 666 < test.txt
+        '''
+
+        with open(self.file, 'r') as file:
+            p = subprocess.Popen(
+                ['nc', '-vvv', '-w 1', self.dst, self.port], stdin=file)
+            p.communicate()
+
+            now = datetime.datetime.now()
+            time = now.strftime('%d-%m-%Y %H:%M:%S')
+
+            print('[*] ', time, 'last data sended')
+
+
+def get_args():
+    ''' parse using flags and arguments '''
+
+    parser = argparse.ArgumentParser()
+
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        '-c', '--client', dest='client', action='store_true')
+    mode.add_argument('-s', '--server', dest='server', action='store_true')
+
+    host = parser.add_mutually_exclusive_group()
+    host.add_argument('-i', '--interface', dest='iface',
+                      action='store', type=str)
+    host.add_argument('-d', '--destination',
+                      dest='dst', action='store', type=str)
+
+    parser.add_argument('-p', '--port',
+                        action='store', dest='port', default='666', type=str)
+    parser.add_argument('-f', '--file', action='store', dest='file')
+
+    args = parser.parse_args()
+
+    ''' Checking if in server mode is used interface, and in client mode is used destination '''
+
+    if args.client and args.iface:
+        print('[!] In client mode you should use [-d] flag insted [-i]')
+        sys.exit(0)
+    if args.server and args.dst:
+        print('[!] In server mode you should use [-i] flag insted [-d]')
+        sys.exit(0)
+
+    return args
+
+
+def main():
+    ''' Script is used to write file on restore machine '''
+
+    args = get_args()
+
+    if args.client:
+        # Client mode
+        print("[*] Client Mode")
+        client = Client(args.dst, args.port, args.file)
+        client.connect()
+
+    elif args.server:
+        # checking if user have root priviliges
+        if os.getuid() == 0:
+
+            # Server mode
+            print("[*] Server mode")
+            server = Server(args.iface, args.port, args.file)
+            server.connect()
+
+        else:
+            print('[!] Permision error. Mode server can be use only as root')
+            sys.exit(0)
+
+    else:
+        print('You have to choose mode ([-s] for server, [-c] for client)')
+        sys.exit(0)
+
+if __name__ == '__main__':
+    main()

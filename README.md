@@ -1,6 +1,6 @@
 ''' Remote editor is a script witch allow user to edit file on local 
 machine and synchronize this file with file on remote machine. It is use 
-to program script on server from local machine.
+to program scripts on server from local machine.
 
 ATTENTION:
     Remote editor open connection on server throu netcat. It is availble 

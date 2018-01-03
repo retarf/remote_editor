@@ -8,8 +8,37 @@ import datetime
 import pyinotify
 
 
-def watch_for_file_change():
-    return 0
+def send(dst, port, file):
+	''' this function send data from file to destination '''
+
+    with open(file, 'r') as f:
+        p = subprocess.Popen(
+            ['nc', '-vvv', '-w 1', dst, port], stdin=f)
+        p.communicate()
+
+        now = datetime.datetime.now()
+        time = now.strftime('%d-%m-%Y %H:%M:%S')
+
+        print('[*] ', time, 'last data sended')
+
+
+def watch_for_file_change(dst, port, file):
+    ''' this function check if file is changed '''
+    wm = pyinotify.WatchManager()
+
+    # Watch only for changes in file
+    mask = pyinotify.IN_MODIFY
+    # mask = pyinotify.IN_CLOSE_WRITE
+
+    def on_change(event):
+        send(dst, port, file)
+
+    # handler = pyinotify.EventHandler()
+    notifier = pyinotify.Notifier(wm)
+
+    wdd = wm.add_watch(file, mask, on_change)
+
+    notifier.loop()
 
 
 class Server:
@@ -54,16 +83,7 @@ class Client:
 
                 nc -vvv -w 1 127.0.0.1 666 < test.txt
         '''
-
-        with open(self.file, 'r') as file:
-            p = subprocess.Popen(
-                ['nc', '-vvv', '-w 1', self.dst, self.port], stdin=file)
-            p.communicate()
-
-            now = datetime.datetime.now()
-            time = now.strftime('%d-%m-%Y %H:%M:%S')
-
-            print('[*] ', time, 'last data sended')
+        watch_for_file_change(self.dst, self.port, self.file)
 
 
 def get_args():

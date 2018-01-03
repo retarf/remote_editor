@@ -9,7 +9,7 @@ import pyinotify
 
 
 def send(dst, port, file):
-	''' this function send data from file to destination '''
+    ''' this function send data from file to destination '''
 
     with open(file, 'r') as f:
         p = subprocess.Popen(
